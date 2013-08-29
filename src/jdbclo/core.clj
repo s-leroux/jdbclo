@@ -60,7 +60,7 @@
 (defmacro with-query-results [ rows query & body ]
   `(let [stmt# (create-statement *conn*)]
     (try 
-      (let [~rows (execute-query stmt# ~query)]
+      (let [ ~rows (resultset-seq (execute-query stmt# ~query)) ]
         ~@body)
       (finally (close-statement stmt#)))
   )
