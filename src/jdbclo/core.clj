@@ -35,19 +35,20 @@
 
 (defmacro with-connection [ db-spec & body ]
   `(binding [*conn* (open-connection ~db-spec)]
-    ~@body
-
-    (close-connection *conn*)
-  )
-  
+     (try
+       (do ~@body)
+       (finally (close-connection *conn*))
+     )
+   )
 )
 
 (defmacro with-statement [ & body ]
   `(binding [*stmt* (create-statement *conn*)]
-    ~@body
-
-    (close-statement *stmt*)
-  )
+     (try
+       (do ~@body)
+       (finally (close-statement *stmt*))
+     )
+   )
 )
 
 (defn update! [ query-string ]
