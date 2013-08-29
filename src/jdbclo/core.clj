@@ -3,6 +3,7 @@
  (:require clojure.string))
 
 (def ^:dynamic *conn* nil)
+(def ^:dynamic *stmt* nil)
 
 (defn build-connection-url [ db-spec ]
   (clojure.string/join ":" [
@@ -34,13 +35,23 @@
 
 (defmacro with-connection [ db-spec & body ]
   `(binding [*conn* (open-connection ~db-spec)]
-    (println *conn*)
     ~@body
 
     (close-connection *conn*)
   )
   
 )
+
+(defmacro with-statement [ & body ]
+  `(binding [*stmt* (create-statement *conn*)]
+    ~@body
+
+    (close-statement *stmt*)
+  )
+)
+
+(defn update! [ query-string ]
+  (execute-update *stmt* query-string))
 
 (defn demo-connect []
   (def db-spec 
@@ -51,10 +62,8 @@
 	   :password "clojurepass"})
   ; (def conn (open-connection db-spec))
   (with-connection db-spec
-    (def stmt (create-statement *conn*))
-    (execute-update stmt "CREATE TABLE tbl (a INT)")
-    (close-statement stmt)
-  )
+    (with-statement
+      (update! "CREATE TABLE tbl (a INT)")))
   ; (close-connection conn) 
 )
 
