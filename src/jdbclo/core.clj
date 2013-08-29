@@ -27,6 +27,9 @@
 (defn execute-update [ stmt query-string ]
   (.executeUpdate stmt query-string))
 
+(defn execute-query [ stmt query-string ]
+  (.executeQuery stmt query-string))
+
 (defn close-statement [ stmt ]
   (.close stmt))
 
@@ -51,8 +54,17 @@
    )
 )
 
-(defn update! [ query-string ]
+(defn execute! [ query-string ]
   (execute-update *stmt* query-string))
+
+(defmacro with-query-results [ rows query & body ]
+  `(let [stmt# (create-statement *conn*)]
+    (try 
+      (let [~rows (execute-query stmt# ~query)]
+        ~@body)
+      (finally (close-statement stmt#)))
+  )
+)
 
 (defn demo-connect []
   (def db-spec 
@@ -61,11 +73,14 @@
 	   :subname "//elecsprint.hoenn.pkmn:3306/clojure-test"
 	   :user "clojure"
 	   :password "clojurepass"})
-  ; (def conn (open-connection db-spec))
   (with-connection db-spec
     (with-statement
-      (update! "CREATE TABLE tbl (a INT)")))
-  ; (close-connection conn) 
+      (execute! "DROP TABLE IF EXISTS tbl")
+      (execute! "CREATE TABLE tbl (a INT)")
+      (execute! "INSERT INTO tbl VALUES(1)"))
+    (with-query-results rows "SELECT * FROM tbl"
+      (println rows))
+  )
 )
 
 (defn -main
