@@ -55,7 +55,8 @@
 )
 
 (defn execute! [ query-string ]
-  (execute-update *stmt* query-string))
+  (with-statement
+    (execute-update *stmt* query-string)))
 
 (defmacro rollback []
  `(.rollback *conn*))
@@ -90,14 +91,13 @@
 	   :user "clojure"
 	   :password "clojurepass"})
   (with-connection db-spec
-    (with-statement
-      (execute! "DROP TABLE IF EXISTS tbl")
-      (execute! "CREATE TABLE tbl (a INT)")
-      (execute! "INSERT INTO tbl VALUES(1)"))
+    (execute! "DROP TABLE IF EXISTS tbl")
+    (execute! "CREATE TABLE tbl (a INT)")
+    (execute! "INSERT INTO tbl VALUES(1)")
     (with-transaction
-      (with-statement
-        (execute! "INSERT INTO tbl VALUES(2)")
-      )
+      (execute! "INSERT INTO tbl VALUES(2)")
+      (rollback)
+      (execute! "INSERT INTO tbl VALUES(3)")
     )
     (with-query-results rows "SELECT * FROM tbl"
       (println rows))
