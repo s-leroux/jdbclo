@@ -57,6 +57,12 @@
 (defn execute! [ query-string ]
   (execute-update *stmt* query-string))
 
+(defmacro rollback []
+ `(.rollback *conn*))
+
+(defmacro commit []
+ `(.commit *conn*))
+
 (defmacro with-query-results [ rows query & body ]
   `(let [stmt# (create-statement *conn*)]
     (try 
@@ -64,6 +70,16 @@
         ~@body)
       (finally (close-statement stmt#)))
   )
+)
+
+(defmacro with-transaction [ & body ]
+  `(try
+    (do
+      (.setAutoCommit *conn* false)
+      ~@body
+      (commit)
+    )
+    (finally (rollback)))
 )
 
 (defn demo-connect []
@@ -78,6 +94,11 @@
       (execute! "DROP TABLE IF EXISTS tbl")
       (execute! "CREATE TABLE tbl (a INT)")
       (execute! "INSERT INTO tbl VALUES(1)"))
+    (with-transaction
+      (with-statement
+        (execute! "INSERT INTO tbl VALUES(2)")
+      )
+    )
     (with-query-results rows "SELECT * FROM tbl"
       (println rows))
   )
