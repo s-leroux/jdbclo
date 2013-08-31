@@ -24,6 +24,9 @@
 (defn create-statement [ conn ]
   (.createStatement conn))
 
+(defn prepare-statement [ conn query-string ]
+  (.prepareStatement conn query-string))
+
 (defn execute-update [ stmt query-string ]
   (.executeUpdate stmt query-string))
 
@@ -44,6 +47,17 @@
      )
    )
 )
+
+(defmacro with-named-connection [ conn db-spec & body ]
+  `(with-connection ~db-spec 
+     (let [~conn *conn*]
+       ~@body
+     )
+  )
+)
+
+(defmacro using-connection [ conn & body ]
+  `(binding[*conn* ~conn] ~@body))
 
 (defmacro with-statement [ & body ]
   `(binding [*stmt* (create-statement *conn*)]
@@ -83,13 +97,14 @@
     (finally (rollback)))
 )
 
+(def db-spec 
+ {:classname "com.mysql.jdbc.Driver"
+  :subprotocol "mysql"
+  :subname "//elecsprint.hoenn.pkmn:3306/clojure-test"
+  :user "clojure"
+  :password "clojurepass"})
+
 (defn demo-connect []
-  (def db-spec 
-	  {:classname "com.mysql.jdbc.Driver"
-	   :subprotocol "mysql"
-	   :subname "//elecsprint.hoenn.pkmn:3306/clojure-test"
-	   :user "clojure"
-	   :password "clojurepass"})
   (with-connection db-spec
     (execute! "DROP TABLE IF EXISTS tbl")
     (execute! "CREATE TABLE tbl (a INT)")
@@ -104,8 +119,20 @@
   )
 )
 
+(defn low-level-demo-connect []
+  (with-open [conn (open-connection db-spec)
+              stmt (prepare-statement conn "INSERT INTO tbl VALUES(?)")]
+
+    ; (execute-ps! stmt 5)
+    ; (execute-ps! stmt 6)
+    ; (execute-ps! stmt 7)
+    ; (execute-ps! stmt 8)
+  )
+)
+
 (defn -main
   "I don't do a whole lot."
   []
   (demo-connect)
+  (low-level-demo-connect)
   (println "Hello, World!"))
