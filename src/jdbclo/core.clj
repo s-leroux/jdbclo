@@ -72,6 +72,11 @@
   (with-statement
     (execute-update *stmt* query-string)))
 
+(defn execute-using! [ stmt & params ]
+  (doall (map-indexed #(.setString stmt (inc %1) (str %2)) params))
+  (.executeUpdate stmt)
+)
+
 (defmacro rollback []
  `(.rollback *conn*))
 
@@ -123,10 +128,10 @@
   (with-open [conn (open-connection db-spec)
               stmt (prepare-statement conn "INSERT INTO tbl VALUES(?)")]
 
-    ; (execute-ps! stmt 5)
-    ; (execute-ps! stmt 6)
-    ; (execute-ps! stmt 7)
-    ; (execute-ps! stmt 8)
+    (execute-using! stmt 5)
+    (execute-using! stmt 6)
+    (execute-using! stmt 7)
+    (execute-using! stmt 8)
   )
 )
 
