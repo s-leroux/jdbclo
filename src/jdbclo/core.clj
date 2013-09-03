@@ -24,8 +24,12 @@
 (defn create-statement [ conn ]
   (.createStatement conn))
 
-(defn prepare-statement [ conn query-string ]
+(defn prepare-statement 
+  ( [ conn query-string ]
   (.prepareStatement conn query-string))
+  ( [ query-string ]
+  (.prepareStatement *conn* query-string))
+)
 
 (defn execute-update [ stmt query-string ]
   (.executeUpdate stmt query-string))
@@ -60,18 +64,9 @@
 (defmacro using-connection [ conn & body ]
   `(binding[*conn* ~conn] ~@body))
 
-(defmacro with-statement [ & body ]
-  `(binding [*stmt* (create-statement *conn*)]
-     (try
-       (do ~@body)
-       (finally (close-statement *stmt*))
-     )
-   )
-)
-
 (defn execute! [ query-string ]
-  (with-statement
-    (execute-update *stmt* query-string)))
+  (with-open [stmt (create-statement *conn*)]
+    (execute-update stmt query-string)))
 
 (defn execute-using! [ stmt & params ]
   (doall (map-indexed #(.setObject stmt (inc %1) %2) params))
@@ -136,9 +131,31 @@
   )
 )
 
+(defn double-connect-demo []
+  (with-open [c1 (open-connection db-spec)
+              c2 (open-connection db-spec)]
+    (using-connection c1
+       (execute! "INSERT INTO tbl VALUES(10)")
+    )
+    (using-connection c2
+       (execute! "INSERT INTO tbl VALUES(20)")
+    )
+
+    (using-connection c1
+      (with-query-results rows "SELECT * FROM tbl"
+        (println rows))
+    )
+    (using-connection c2
+      (with-query-results rows "SELECT * FROM tbl"
+        (println rows))
+    )
+  )
+)
+
 (defn -main
   "I don't do a whole lot."
   []
   (demo-connect)
   (low-level-demo-connect)
+  (double-connect-demo)
   (println "Hello, World!"))
