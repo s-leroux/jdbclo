@@ -73,7 +73,7 @@
     (execute-update *stmt* query-string)))
 
 (defn execute-using! [ stmt & params ]
-  (doall (map-indexed #(.setString stmt (inc %1) (str %2)) params))
+  (doall (map-indexed #(.setObject stmt (inc %1) %2) params))
   (.executeUpdate stmt)
 )
 
