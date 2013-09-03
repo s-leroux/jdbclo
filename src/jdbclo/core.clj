@@ -39,13 +39,14 @@
 (defn close-connection [ conn ]
   (.close conn))
 
+(defmacro with-connection* [ db-spec f & args ]
+  `(with-open [conn# (open-connection ~db-spec)]
+    (apply ~f conn# ~args)
+  )
+)
+
 (defmacro with-connection [ db-spec & body ]
-  `(binding [*conn* (open-connection ~db-spec)]
-     (try
-       (do ~@body)
-       (finally (close-connection *conn*))
-     )
-   )
+  `(with-connection* ~db-spec (fn [conn#] (binding [*conn* conn#]  ~@body)))
 )
 
 (defmacro with-named-connection [ conn db-spec & body ]
