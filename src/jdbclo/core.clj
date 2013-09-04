@@ -23,12 +23,15 @@
 (defn create-statement [ conn ]
   (.createStatement conn))
 
-(defn execute-update [ stmt & params]
-  (dorun (map-indexed #(.setObject stmt (inc %1) %2) params))
+(defn execute-update [ stmt ]
   (.executeUpdate stmt))
 
-(defn execute-query [ stmt query-string ]
-  (.executeQuery stmt query-string))
+(defn bind [ stmt & params ]
+  (dorun (map-indexed #(.setObject stmt (inc %1) %2) params))
+  stmt)
+
+(defn execute-query [ stmt ]
+  (.executeQuery stmt))
 
 (defn close-statement [ stmt ]
   (.close stmt))
@@ -74,10 +77,11 @@
   )
 )
 
-(defn execute! [ stmt & params ]
-  (if (instance? java.sql.Statement stmt)
-      (apply execute-update stmt params)
-      (with-statement pstmt stmt (apply execute! pstmt params))))
+(defn execute! [ stmt-or-query-string ]
+  (if (instance? java.sql.Statement stmt-or-query-string)
+      (execute-update stmt-or-query-string)
+      (with-statement pstmt stmt-or-query-string
+        (execute! pstmt))))
 
 (defmacro rollback []
  `(.rollback *conn*))
@@ -85,14 +89,15 @@
 (defmacro commit []
  `(.commit *conn*))
 
+(defmacro with-query-results* [ rows stmt & body ]
+  `(let [ ~rows (resultset-seq (execute-query ~stmt)) ]
+     ~@body))
+
 (defmacro with-query-results [ rows query & body ]
-  `(let [stmt# (create-statement *conn*)]
-    (try 
-      (let [ ~rows (resultset-seq (execute-query stmt# ~query)) ]
-        ~@body)
-      (finally (close-statement stmt#)))
-  )
-)
+  `(if (instance? java.sql.Statement ~query)
+       (with-query-results* ~rows ~query ~@body)
+       (with-statement stmt# ~query
+         (with-query-results* ~rows stmt# ~@body))))
 
 (defmacro with-transaction [ & body ]
   `(try
@@ -129,9 +134,14 @@
 (defn prepared-statement-demo []
   (with-connection db-spec
     (with-statement stmt "INSERT INTO tbl VALUES(?)"
-      (execute! stmt 100)
-      (execute! stmt 200)
-      (execute! stmt 300)
+      (execute! (bind stmt 100))
+      (execute! (bind stmt 200))
+      (execute! (bind stmt 300))
+    )
+    (with-statement stmt "SELECT * FROM tbl WHERE a > ?"
+      (with-query-results rows (bind stmt 5)
+        (println rows)
+      )
     )
   )
 )
@@ -140,10 +150,10 @@
   (with-open [conn (open-connection db-spec)
               stmt (prepare-statement conn "INSERT INTO tbl VALUES(?)")]
 
-    (execute! stmt 5)
-    (execute! stmt 6)
-    (execute! stmt 7)
-    (execute! stmt 8)
+    (execute! (bind stmt 5))
+    (execute! (bind stmt 6))
+    (execute! (bind stmt 7))
+    (execute! (bind stmt 8))
   )
 )
 
