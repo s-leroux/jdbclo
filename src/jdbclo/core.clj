@@ -3,7 +3,6 @@
  (:require clojure.string))
 
 (def ^:dynamic *conn* nil)
-(def ^:dynamic *stmt* nil)
 
 (defn build-connection-url [ db-spec ]
   (clojure.string/join ":" [
@@ -24,8 +23,9 @@
 (defn create-statement [ conn ]
   (.createStatement conn))
 
-(defn execute-update [ stmt query-string ]
-  (.executeUpdate stmt query-string))
+(defn execute-update [ stmt & params]
+  (dorun (map-indexed #(.setObject stmt (inc %1) %2) params))
+  (.executeUpdate stmt))
 
 (defn execute-query [ stmt query-string ]
   (.executeQuery stmt query-string))
@@ -37,9 +37,9 @@
   (.close conn))
 
 ;;
-;; High-level objects are handled using with-/using- functions
+;; To capture the current connection:
+;;  (with-connection* db-spec (fn [conn] ( body )))
 ;;
-
 (defmacro with-connection* [ db-spec f & args ]
   `(with-open [conn# (open-connection ~db-spec)]
     (apply ~f conn# ~args)
@@ -68,23 +68,16 @@
   (.prepareStatement *conn* query-string))
 )
 
-(defmacro with-prepared-statement [ query-string & body ]
-  `(with-open [stmt# (prepare-statement ~query-string)]
-    (using-prepared-statement stmt# ~@body)
+(defmacro with-statement [ stmt query-string & body ]
+  `(with-open [~stmt (prepare-statement ~query-string)]
+    ~@body
   )
 )
 
-(defmacro using-prepared-statement [ stmt & body ]
-  `(binding[*stmt* ~stmt] ~@body))
-
-(defn execute! [ query-string ]
-  (with-open [stmt (create-statement *conn*)]
-    (execute-update stmt query-string)))
-
-(defn execute-using! [ & params ]
-  (doall (map-indexed #(.setObject *stmt* (inc %1) %2) params))
-  (.executeUpdate *stmt*)
-)
+(defn execute! [ stmt & params ]
+  (if (instance? java.sql.Statement stmt)
+      (apply execute-update stmt params)
+      (with-statement pstmt stmt (apply execute! pstmt params))))
 
 (defmacro rollback []
  `(.rollback *conn*))
@@ -135,10 +128,10 @@
 
 (defn prepared-statement-demo []
   (with-connection db-spec
-    (with-prepared-statement "INSERT INTO tbl VALUES(?)"
-      (execute-using! 100)
-      (execute-using! 200)
-      (execute-using! 300)
+    (with-statement stmt "INSERT INTO tbl VALUES(?)"
+      (execute! stmt 100)
+      (execute! stmt 200)
+      (execute! stmt 300)
     )
   )
 )
@@ -147,12 +140,10 @@
   (with-open [conn (open-connection db-spec)
               stmt (prepare-statement conn "INSERT INTO tbl VALUES(?)")]
 
-    (using-prepared-statement stmt
-      (execute-using! 5)
-      (execute-using! 6)
-      (execute-using! 7)
-      (execute-using! 8)
-    )
+    (execute! stmt 5)
+    (execute! stmt 6)
+    (execute! stmt 7)
+    (execute! stmt 8)
   )
 )
 
