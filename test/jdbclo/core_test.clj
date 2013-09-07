@@ -25,8 +25,14 @@
 )
 
 (defn db-setup [] 
+  (execute! "DROP PROCEDURE IF EXISTS doInsert")
   (execute! "DROP TABLE IF EXISTS test_tbl")
+
   (execute! "CREATE TABLE test_tbl (a INT, b INT)")
+  (execute! "CREATE PROCEDURE doInsert(IN a INT, IN b INT)
+             BEGIN
+               INSERT INTO test_tbl VALUES (a,b);
+             END")
 )
 
 (defn db-populate []
@@ -87,4 +93,15 @@
             (is (= (count rows) 5))
             (is (= (first rows) { :a 5 :b 50 })))))
       ))
+
+  (testing "Callable statement"
+    (with-connection db-spec
+      (db-setup)
+      (let [query "{call doInsert(25,30)}"]
+        (with-callable stmt query
+          (execute! stmt)))
+      (let [query "SELECT * FROM test_tbl ORDER BY a ASC"
+            rows (with-query-results r query (doall r))]
+        (is(= rows '({:a 25 :b 30}))))
+  ))
 )

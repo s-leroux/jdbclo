@@ -71,8 +71,18 @@
   (.prepareStatement *conn* query-string))
 )
 
+(defn callable-statement
+  [ query-string ]
+  (.prepareCall *conn* query-string))
+
 (defmacro with-statement [ stmt query-string & body ]
   `(with-open [~stmt (prepare-statement ~query-string)]
+    ~@body
+  )
+)
+
+(defmacro with-callable [ stmt query-string & body ]
+  `(with-open [~stmt (callable-statement ~query-string)]
     ~@body
   )
 )
