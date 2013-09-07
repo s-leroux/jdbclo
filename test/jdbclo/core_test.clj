@@ -175,4 +175,20 @@
             (is (= n 1.2))
 	  )))
   ))
+
+  (testing "Output NULL"
+    (with-connection db-spec
+      (db-setup)
+      (execute! "DROP PROCEDURE IF EXISTS nullOutTest")
+      (execute! "CREATE PROCEDURE nullOutTest(OUT a CHAR(255))
+                 BEGIN
+                   SET a = NULL;
+                 END")
+      (let [query "{call nullOutTest(?)}"]
+        (with-callable stmt query
+          (execute! stmt)
+          (let [[a] (unbind stmt)]
+            (is (= a nil))
+	  )))
+  ))
 )
