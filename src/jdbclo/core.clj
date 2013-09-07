@@ -1,5 +1,6 @@
 (ns jdbclo.core
- (:import (java.sql DriverManager))
+ (:import (java.sql DriverManager)
+          (java.sql ParameterMetaData))
  (:require clojure.string))
 
 (def ^:dynamic *conn* nil)
@@ -29,6 +30,17 @@
 (defn bind [ stmt & params ]
   (dorun (map-indexed #(.setObject stmt (inc %1) %2) params))
   stmt)
+
+(defn unbind [ stmt ]
+  (let [^ParameterMetaData info (.getParameterMetaData stmt)
+        count (.getParameterCount info)]
+    (map #(let [idx (inc %1)
+                mode (.getParameterMode info idx)
+                type (.getParameterType info idx)]
+            (if (some #{mode} [(. ParameterMetaData parameterModeInOut)
+                               (. ParameterMetaData parameterModeOut)])
+              (.getInt stmt idx)))
+      (range count))))
 
 (defn execute-query [ stmt ]
   (.executeQuery stmt))

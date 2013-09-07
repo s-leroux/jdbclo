@@ -26,9 +26,14 @@
 
 (defn db-setup [] 
   (execute! "DROP PROCEDURE IF EXISTS doInsert")
+  (execute! "DROP PROCEDURE IF EXISTS dblValue")
   (execute! "DROP TABLE IF EXISTS test_tbl")
 
   (execute! "CREATE TABLE test_tbl (a INT, b INT)")
+  (execute! "CREATE PROCEDURE dblValue(IN a INT, OUT b INT)
+             BEGIN
+               SET b = 2*a;
+             END")
   (execute! "CREATE PROCEDURE doInsert(IN a INT, IN b INT)
              BEGIN
                INSERT INTO test_tbl VALUES (a,b);
@@ -103,5 +108,18 @@
       (let [query "SELECT * FROM test_tbl ORDER BY a ASC"
             rows (with-query-results r query (doall r))]
         (is(= rows '({:a 25 :b 30}))))
+  ))
+
+  (testing "Callable statement with out param."
+    (with-connection db-spec
+      (db-setup)
+      (let [query "{call dblValue(?,?)}"]
+        (with-callable stmt query
+          ; (.registerOutParameter stmt 1 'java.sql.Types.INTEGER)
+          (bind stmt 25)
+          (execute! stmt)
+          (let [[p1 p2] (unbind stmt)]
+	    (println (list p1 p2))
+            (is (= p2 50)))))
   ))
 )
