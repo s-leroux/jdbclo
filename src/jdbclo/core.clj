@@ -34,9 +34,55 @@
 (defmulti get-value 
   (fn [stmt ^ParameterMetaData info idx] (.getParameterType info idx)))
 
+(defmethod get-value (. java.sql.Types NUMERIC)
+  [stmt info idx]
+  (.getBigDecimal stmt idx))
+
+(defmethod get-value (. java.sql.Types DECIMAL)
+  [stmt info idx]
+  (.getBigDecimal stmt idx))
+
+(defmethod get-value (. java.sql.Types BIT)
+  [stmt info idx]
+  (.getBoolean stmt idx))
+
+;;
+;; ??? MySQL JDBC driver report BOOLEAN as "1111" not java.sql.Type.BOOLEAN
+(defmethod get-value 1111
+  [stmt info idx]
+  (.getBoolean stmt idx))
+
+(defmethod get-value (. java.sql.Types BOOLEAN)
+  [stmt info idx]
+  (.getBoolean stmt idx))
+
+(defmethod get-value (. java.sql.Types TINYINT)
+  [stmt info idx]
+  (.getByte stmt idx))
+
+(defmethod get-value (. java.sql.Types SMALLINT)
+  [stmt info idx]
+  (.getShort stmt idx))
+
 (defmethod get-value (. java.sql.Types INTEGER)
   [stmt info idx]
   (.getInt stmt idx))
+
+(defmethod get-value (. java.sql.Types BIGINT)
+  [stmt info idx]
+  (.getLong stmt idx))
+
+(defmethod get-value (. java.sql.Types REAL)
+  [stmt info idx]
+  (.getFloat stmt idx))
+
+(defmethod get-value (. java.sql.Types FLOAT)
+  [stmt info idx]
+  (.getDouble stmt idx))
+
+(defmethod get-value (. java.sql.Types DOUBLE)
+  [stmt info idx]
+  (.getDouble stmt idx))
 
 (defmethod get-value :default
   [stmt info idx]

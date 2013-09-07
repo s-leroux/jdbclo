@@ -30,7 +30,7 @@
   (execute! "DROP TABLE IF EXISTS test_tbl")
 
   (execute! "CREATE TABLE test_tbl (a INT, b INT)")
-  (execute! "CREATE PROCEDURE dblValue(IN a INT, OUT b INT)
+  (execute! "CREATE PROCEDURE dblValue(IN a INT, OUT b BIGINT)
              BEGIN
                SET b = 2*a;
              END")
@@ -121,5 +121,58 @@
           (let [[p1 p2] (unbind stmt)]
 	    (println (list p1 p2))
             (is (= p2 50)))))
+  ))
+
+  (testing "Output param. types"
+    (with-connection db-spec
+      (db-setup)
+      (execute! "DROP PROCEDURE IF EXISTS paramTest")
+      (execute! "CREATE PROCEDURE paramTest(OUT a CHAR(255),
+					    OUT b VARCHAR(255),
+					    OUT d NUMERIC(3,1),
+					    OUT e DECIMAL(3,1),
+					    OUT f BIT,
+					    OUT g BOOLEAN,
+					    OUT h TINYINT,
+					    OUT i SMALLINT,
+					    OUT j INTEGER,
+					    OUT k BIGINT,
+					    OUT l REAL,
+					    OUT m FLOAT,
+					    OUT n DOUBLE)
+                 BEGIN
+                   SET a = \"a\";
+		   SET b = \"b\";
+		   SET d = 1.2;
+		   SET e = 1.2;
+		   SET f = 1;
+		   SET g = true;
+		   SET h = 12;
+		   SET i = 128;
+		   SET j = 32768;
+		   SET k = 4000000;
+		   SET l = 1.2;
+		   SET m = 1.2;
+		   SET n = 1.2;
+                 END")
+      (let [query "{call paramTest(?,?,?,?,?,?,?,?,?,?,?,?,?)}"]
+        (with-callable stmt query
+          ; (.registerOutParameter stmt 1 'java.sql.Types.INTEGER)
+          (execute! stmt)
+          (let [[a b d e f g h i j k l m n] (unbind stmt)]
+            (is (= a "a"))
+            (is (= b "b"))
+            (is (= d 1.2M))
+            (is (= e 1.2M))
+            (is (= f true))
+            (is (= g true))
+            (is (= h 12))
+            (is (= i 128))
+            (is (= j 32768))
+            (is (= k 4000000))
+            (is (= l 1.2))
+            (is (= m (float 1.2)))
+            (is (= n 1.2))
+	  )))
   ))
 )
