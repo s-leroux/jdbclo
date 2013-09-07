@@ -31,6 +31,18 @@
   (dorun (map-indexed #(.setObject stmt (inc %1) %2) params))
   stmt)
 
+(defmulti get-value 
+  (fn [stmt ^ParameterMetaData info idx] (.getParameterType info idx)))
+
+(defmethod get-value (. java.sql.Types INTEGER)
+  [stmt info idx]
+  (.getInt stmt idx))
+
+(defmethod get-value :default
+  [stmt info idx]
+  (.getObject stmt idx))
+  
+
 (defn unbind [ stmt ]
   (let [^ParameterMetaData info (.getParameterMetaData stmt)
         count (.getParameterCount info)]
@@ -39,7 +51,7 @@
                 type (.getParameterType info idx)]
             (if (some #{mode} [(. ParameterMetaData parameterModeInOut)
                                (. ParameterMetaData parameterModeOut)])
-              (.getInt stmt idx)))
+              (get-value stmt info idx)))
       (range count))))
 
 (defn execute-query [ stmt ]
